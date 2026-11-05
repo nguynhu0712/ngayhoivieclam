@@ -36,6 +36,17 @@ def init_db():
 # Khởi tạo DB khi app start
 init_db()
 
+@app.get("/api/con-cho")
+async def con_cho(ma_phien: str):
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM dang_ky WHERE ma_phien = ?", (ma_phien,))
+            count = cursor.fetchone()[0]
+            return {"con_cho": 30 - count}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
 @app.post("/api/dang-ky", status_code=status.HTTP_201_CREATED)
 async def dang_ky_tham_gia(registration: DangKy):
     try:
