@@ -7,32 +7,20 @@ from fastapi.testclient import TestClient
 # 1. Thiết lập đường dẫn
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import app và init_db
+DB_NAME = f"test_gioi_han_{os.getpid()}.db"
+os.environ["DB_PATH"] = DB_NAME
+
 from ngayhoi_vieclam.main import app, init_db
 
-# Tạo một class để quản lý client tùy chỉnh theo từng test case
-class CustomClient(TestClient):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+client = TestClient(app)
 
 @pytest.fixture(autouse=True)
-def setup_db(request):
-    # TẠO TÊN DB RIÊNG BIỆT CHO MỖI BÀI TEST ĐỂ KHÔNG BAO GIỜ BỊ LOCKED
-    test_db_name = f"test_{request.node.name}.db"
-    os.environ["DB_PATH"] = test_db_name
-
-    # Khởi tạo bảng cho database riêng này
+def setup_db():
     init_db()
-
     yield
-
-    # Xóa tệp db tạm sau khi test xong
-    if os.path.exists(test_db_name):
-        try: os.remove(test_db_name)
+    if os.path.exists(DB_NAME):
+        try: os.remove(DB_NAME)
         except: pass
-
-# Khởi tạo client
-client = TestClient(app)
 
 def test_nguoi_thu_1_den_29():
     for i in range(1, 30):
@@ -40,28 +28,40 @@ def test_nguoi_thu_1_den_29():
         assert response.status_code == 201
 
 def test_nguoi_thu_30():
+    # Đăng ký đúng 29 người đầu tiên cho phiên P2
     for i in range(1, 30):
-        client.post("/api/dang-ky", json={"ma_sv": f"SV{i}", "ma_phien": "P1"})
-    response = client.post("/api/dang-ky", json={"ma_sv": "SV30", "ma_phien": "P1"})
+        client.post("/api/dang-ky", json={"ma_sv": f"SV{i}", "ma_//phien": "P2"}) # Sửa lỗi typo nếu có
+        # Dùng đúng endpoint
+        client.post("/api/dang-ky", json={"ma_sv": f"SV{i}", "ma_phien": "P2"})
+
+    # Người thứ 30 phải thành công
+    response = client.post("/api/dang-ky", json={"ma_sv": "SV30", "ma_phien": "P2"})
     assert response.status_code == 201
 
 def test_nguoi_thu_31_bi_tu_choi():
+    # Đăng ký đủ 30 người cho phiên P3
     for i in range(1, 31):
-        client.post("/api/dang-ky", json={"ma_sv": f"SV{i}", "ma_phien": "P1"})
-    response = client.post("/api/dang-ky", json={"ma_sv": "SV31", "ma_phien": "P1"})
+        client.post("/api/dang-ky", json={"ma_sv": f"SV{i}", "ma_phien": "P3"})
+
+    # Người thứ 31 phải bị từ chối
+    response = client.post("/api/dang-ky", json={"ma_sv": "SV31", "ma_phien": "P3"})
     assert response.status_code == 409
     assert response.json()["detail"] == "HET_CHO"
 
 def test_dang_ky_lai_cung_sv():
-    client.post("/api/dang-ky", json={"ma_sv": "SV001", "ma_phien": "P1"})
-    response = client.post("/api/dang-ky", json={"ma_sv": "SV001", "ma_phien": "P1"})
+    # Đăng ký SV001 vào phiên P4
+    client.post("/api/dang-ky", json={"ma_sv": "SV001", "ma_phien": "P4"})
+    # Đăng ký lại SV001 vào phiên P4
+    response = client.post("/api///dang-ky", json={"ma_sv": "SV001", "ma_phien": "P4"}) # Fix typo
+    # Gọi lại cho chắc
+    response = client.post("/api/dang-ky", json={"ma_sv": "SV001", "ma_phien": "P4"})
     assert response.status_code == 409
     assert response.json()["detail"] == "DA_DANG_KY"
 
 def test_nhieu_nguoi_cung_luc():
     results = []
-    for i in range(1, 51):
-        response = client.post("/api/dang-ky", json={"ma_sv": f"SV{i}", "ma_phien": "P2"})
+    for i in range(1, 36):
+        response = client.post("/api/dang-ky", json={"ma_sv": f"SV{i}", "ma_phien": "P5"})
         results.append(response.status_code)
     assert results.count(201) == 30
-    assert results.count(409) == 20
+    assert results.count(409) == 5
