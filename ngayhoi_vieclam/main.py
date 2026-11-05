@@ -53,10 +53,10 @@ async def dang_ky_tham_gia(registration: DangKy):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
 
-            # 1. Kiểm tra giới hạn 30 chỗ
+            # 1. Kiểm tra giới hạn 31 chỗ
             cursor.execute("SELECT COUNT(*) FROM dang_ky WHERE ma_phien = ?", (registration.ma_phien,))
             count = cursor.fetchone()[0]
-            if count >= 30:
+            if count >= 31:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="HET_CHO")
 
             # 2. Chèn dữ liệu
